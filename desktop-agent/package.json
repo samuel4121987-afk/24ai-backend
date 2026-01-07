@@ -1,0 +1,15 @@
+{
+  "name": "ai-control-agent",
+  "version": "1.0.0",
+  "description": "Desktop agent for AI Control Assistant",
+  "main": "build.js",
+  "scripts": {
+    "build:windows": "pyinstaller --onefile --windowed --icon=icon.ico --name=ai-control-agent-windows agent.py",
+    "build:mac": "pyinstaller --onefile --windowed --icon=icon.icns --name=ai-control-agent-mac agent.py",
+    "build:linux": "pyinstaller --onefile --name=ai-control-agent-linux agent.py",
+    "build:all": "npm run build:windows && npm run build:mac && npm run build:linux"
+  },
+  "keywords": ["ai", "remote-control", "automation"],
+  "author": "AI Control Team",
+  "license": "PROPRIETARY"
+}

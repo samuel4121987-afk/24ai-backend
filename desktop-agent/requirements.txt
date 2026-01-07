@@ -1,0 +1,22 @@
+# AI Control Desktop Agent - Requirements
+
+# Core dependencies
+pyautogui>=0.9.54
+mss>=9.0.1
+Pillow>=10.0.0
+websockets>=12.0
+
+# Optional dependencies for enhanced functionality
+opencv-python>=4.8.0
+pytesseract>=0.3.10
+psutil>=5.9.0
+
+# Platform-specific dependencies
+# Windows
+pywin32>=306; sys_platform == 'win32'
+
+# macOS
+pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'
+
+# Linux
+python-xlib>=0.33; sys_platform == 'linux'
