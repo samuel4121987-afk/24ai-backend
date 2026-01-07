@@ -51,8 +51,10 @@ export default function OwnerTestPage() {
   }, [messages]);
 
   const connectToAgent = () => {
-    // Simulate WebSocket connection
-    const ws = new WebSocket('ws://localhost:8000/ws?code=test-code&client_type=web');
+    // Connect to Railway backend WebSocket
+    const wsUrl = import.meta.env.VITE_WS_URL || 'wss://24ai-backend-production.up.railway.app/ws';
+    const ws = new WebSocket(`${wsUrl}?code=test-code&client_type=web`);
+    console.log('Connecting to WebSocket:', `${wsUrl}?code=test-code&client_type=web`);
     
     ws.onopen = () => {
       setAgentStatus(prev => ({ ...prev, connected: true }));
