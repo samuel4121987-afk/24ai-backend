@@ -24,8 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OpenAI Configuration
-openai.api_key = "sk-proj-S_vEcGKe0Ks7_yiMPQVJOXCkJPPKdxWJPPvGPqLdH-lYqJdvSJqxdVWHqLdxWJPPvGPqLdH-lYqJdvSJqxdVWHqLdxWJPPvGPqLdH-lYqJdvSJqxdVWHqLdxWJPPvGPqLdH"
+# OpenAI Configuration - Read from environment variable
+openai.api_key = os.getenv('OPENAI_API_KEY')
+
+if not openai.api_key:
+    print("WARNING: OPENAI_API_KEY environment variable not set!")
 
 # Store active connections
 class ConnectionManager:
