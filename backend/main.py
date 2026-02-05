@@ -178,33 +178,64 @@ async def health_check():
 @app.get("/api/download-agent")
 async def download_agent():
     """Download the desktop agent package as a zip file"""
-    from fastapi.responses import StreamingResponse
+    from fastapi.responses import StreamingResponse, JSONResponse
     import zipfile
     import io
     
-    # Create a zip file in memory
-    zip_buffer = io.BytesIO()
-    
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        # Add agent files
-        base_path = os.path.join(os.path.dirname(__file__), '..', 'desktop-agent')
+    try:
+        # Create a zip file in memory
+        zip_buffer = io.BytesIO()
         
-        # Add main agent files
-        zip_file.write(os.path.join(base_path, 'agent.py'), 'agent.py')
-        zip_file.write(os.path.join(base_path, 'requirements.txt'), 'requirements.txt')
-        zip_file.write(os.path.join(base_path, 'install.py'), 'install.py')
+        # Try multiple possible paths
+        possible_paths = [
+            os.path.join(os.path.dirname(__file__), '..', 'desktop-agent'),
+            os.path.join(os.getcwd(), 'desktop-agent'),
+            '/app/desktop-agent',
+            'desktop-agent'
+        ]
         
-        # Create installer script
-        installer_script = '''#!/bin/bash\ncd "$(dirname "$0")"\npython3 install.py\n'''
-        zip_file.writestr('24ai-installer.command', installer_script)
-    
-    zip_buffer.seek(0)
-    
-    return StreamingResponse(
-        iter([zip_buffer.getvalue()]),
-        media_type="application/zip",
-        headers={"Content-Disposition": "attachment; filename=24ai-desktop-agent.zip"}
-    )
+        base_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                base_path = path
+                print(f"Found desktop-agent at: {path}")
+                break
+        
+        if not base_path:
+            print(f"ERROR: desktop-agent folder not found. Tried: {possible_paths}")
+            print(f"Current directory: {os.getcwd()}")
+            print(f"Directory contents: {os.listdir(os.getcwd())}")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Desktop agent files not found", "cwd": os.getcwd()}
+            )
+        
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # Add main agent files
+            zip_file.write(os.path.join(base_path, 'agent.py'), 'agent.py')
+            zip_file.write(os.path.join(base_path, 'requirements.txt'), 'requirements.txt')
+            zip_file.write(os.path.join(base_path, 'install.py'), 'install.py')
+            
+            # Create installer script
+            installer_script = '''#!/bin/bash\ncd "$(dirname "$0")"\npython3 install.py\n'''
+            zip_file.writestr('24ai-installer.command', installer_script)
+        
+        zip_buffer.seek(0)
+        print(f"Successfully created zip file with {len(zip_buffer.getvalue())} bytes")
+        
+        return StreamingResponse(
+            iter([zip_buffer.getvalue()]),
+            media_type="application/zip",
+            headers={"Content-Disposition": "attachment; filename=24ai-desktop-agent.zip"}
+        )
+    except Exception as e:
+        print(f"ERROR in download_agent: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 if __name__ == "__main__":
     import uvicorn
