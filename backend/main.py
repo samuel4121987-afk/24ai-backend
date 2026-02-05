@@ -175,6 +175,37 @@ async def health_check():
         "active_agents": len(manager.agent_connections)
     }
 
+@app.get("/api/download-agent")
+async def download_agent():
+    """Download the desktop agent package as a zip file"""
+    from fastapi.responses import StreamingResponse
+    import zipfile
+    import io
+    
+    # Create a zip file in memory
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        # Add agent files
+        base_path = os.path.join(os.path.dirname(__file__), '..', 'desktop-agent')
+        
+        # Add main agent files
+        zip_file.write(os.path.join(base_path, 'agent.py'), 'agent.py')
+        zip_file.write(os.path.join(base_path, 'requirements.txt'), 'requirements.txt')
+        zip_file.write(os.path.join(base_path, 'install.py'), 'install.py')
+        
+        # Create installer script
+        installer_script = '''#!/bin/bash\ncd "$(dirname "$0")"\npython3 install.py\n'''
+        zip_file.writestr('24ai-installer.command', installer_script)
+    
+    zip_buffer.seek(0)
+    
+    return StreamingResponse(
+        iter([zip_buffer.getvalue()]),
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=24ai-desktop-agent.zip"}
+    )
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
