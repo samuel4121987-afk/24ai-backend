@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Control Assistant</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: transparent;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    .container {
+      width: 380px;
+      height: 520px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      -webkit-app-region: drag;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: white;
+      font-weight: 600;
+      font-size: 18px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+      -webkit-app-region: no-drag;
+    }
+
+    .control-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .control-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
+    }
+
+    .status {
+      padding: 0 20px 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: white;
+      font-size: 14px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected {
+      background: #10b981;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .content {
+      flex: 1;
+      background: white;
+      border-radius: 20px 20px 0 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      -webkit-app-region: no-drag;
+    }
+
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .chat-area::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .chat-area::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+
+    .chat-area::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 3px;
+    }
+
+    .message {
+      padding: 12px 16px;
+      border-radius: 12px;
+      max-width: 85%;
+      word-wrap: break-word;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.user {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+
+    .message.assistant {
+      background: #f3f4f6;
+      color: #1f2937;
+      align-self: flex-start;
+    }
+
+    .message.system {
+      background: #fef3c7;
+      color: #92400e;
+      align-self: center;
+      font-size: 13px;
+      text-align: center;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 10px;
+    }
+
+    .input-field {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: #667eea;
+    }
+
+    .send-btn {
+      width: 48px;
+      height: 48px;
+      border: none;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      font-size: 20px;
+    }
+
+    .send-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .send-btn:active {
+      transform: scale(0.95);
+    }
+
+    .settings-panel {
+      display: none;
+      padding: 20px;
+      background: white;
+      border-radius: 12px;
+      margin-bottom: 15px;
+    }
+
+    .settings-panel.active {
+      display: block;
+    }
+
+    .setting-group {
+      margin-bottom: 15px;
+    }
+
+    .setting-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .setting-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .setting-input:focus {
+      border-color: #667eea;
+    }
+
+    .save-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .save-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .quick-btn {
+      padding: 8px 14px;
+      background: #f3f4f6;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #374151;
+    }
+
+    .quick-btn:hover {
+      background: #e5e7eb;
+      transform: translateY(-1px);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">🤖</div>
+        <span>AI Assistant</span>
+      </div>
+      <div class="controls">
+        <button class="control-btn" id="settingsBtn" title="Settings">⚙️</button>
+        <button class="control-btn" id="minimizeBtn" title="Minimize">➖</button>
+        <button class="control-btn" id="closeBtn" title="Hide">✖️</button>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Disconnected</span>
+    </div>
+
+    <div class="content">
+      <div class="settings-panel" id="settingsPanel">
+        <div class="setting-group">
+          <label class="setting-label">Access Code</label>
+          <input type="text" class="setting-input" id="accessCodeInput" placeholder="Enter access code">
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">WebSocket URL</label>
+          <input type="text" class="setting-input" id="wsUrlInput" placeholder="ws://localhost:8000/ws">
+        </div>
+        <div class="setting-group">
+          <label class="setting-label">OpenAI API Key</label>
+          <input type="password" class="setting-input" id="apiKeyInput" placeholder="sk-...">
+        </div>
+        <button class="save-btn" id="saveSettingsBtn">Save Settings</button>
+      </div>
+
+      <div class="quick-actions" id="quickActions">
+        <button class="quick-btn" data-action="Open YouTube">🎵 YouTube</button>
+        <button class="quick-btn" data-action="Open Google">🔍 Google</button>
+        <button class="quick-btn" data-action="Take screenshot">📸 Screenshot</button>
+        <button class="quick-btn" data-action="Show desktop">🖥️ Desktop</button>
+      </div>
+
+      <div class="chat-area" id="chatArea">
+        <div class="message system">
+          👋 Hi! I'm your AI assistant. I can help you with tasks on your computer.
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" class="input-field" id="messageInput" placeholder="Type a command...">
+        <button class="send-btn" id="sendBtn">🚀</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const chatArea = document.getElementById('chatArea');
+    const messageInput = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const minimizeBtn = document.getElementById('minimizeBtn');
+    const closeBtn = document.getElementById('closeBtn');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const quickActions = document.getElementById('quickActions');
+
+    // Load settings
+    ipcRenderer.send('get-settings');
+    ipcRenderer.on('settings-data', (event, settings) => {
+      document.getElementById('accessCodeInput').value = settings.accessCode || '';
+      document.getElementById('wsUrlInput').value = settings.wsUrl || 'ws://localhost:8000/ws';
+      document.getElementById('apiKeyInput').value = settings.apiKey || '';
+    });
+
+    // Connection status
+    ipcRenderer.on('connection-status', (event, data) => {
+      if (data.connected) {
+        statusDot.classList.add('connected');
+        statusText.textContent = 'Connected';
+        addMessage('system', '✅ Connected to server');
+      } else {
+        statusDot.classList.remove('connected');
+        statusText.textContent = 'Disconnected';
+        addMessage('system', '🔴 Disconnected from server');
+      }
+    });
+
+    // Sequence progress
+    ipcRenderer.on('sequence-start', (event, data) => {
+      addMessage('system', `🚀 Starting task with ${data.total} steps...`);
+    });
+
+    ipcRenderer.on('sequence-progress', (event, data) => {
+      addMessage('assistant', `⚡ Step ${data.step}/${data.total}: ${data.action.type}`);
+    });
+
+    ipcRenderer.on('sequence-complete', () => {
+      addMessage('system', '✅ Task completed successfully!');
+    });
+
+    // Add message to chat
+    function addMessage(type, text) {
+      const message = document.createElement('div');
+      message.className = `message ${type}`;
+      message.textContent = text;
+      chatArea.appendChild(message);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // Send message
+    function sendMessage() {
+      const text = messageInput.value.trim();
+      if (!text) return;
+
+      addMessage('user', text);
+      messageInput.value = '';
+
+      // In a real implementation, this would send to the backend
+      addMessage('assistant', '🤔 Processing your command...');
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    messageInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
+
+    // Quick actions
+    quickActions.addEventListener('click', (e) => {
+      if (e.target.classList.contains('quick-btn')) {
+        const action = e.target.dataset.action;
+        messageInput.value = action;
+        sendMessage();
+      }
+    });
+
+    // Settings
+    settingsBtn.addEventListener('click', () => {
+      settingsPanel.classList.toggle('active');
+    });
+
+    saveSettingsBtn.addEventListener('click', () => {
+      const settings = {
+        accessCode: document.getElementById('accessCodeInput').value,
+        wsUrl: document.getElementById('wsUrlInput').value,
+        apiKey: document.getElementById('apiKeyInput').value
+      };
+      ipcRenderer.send('save-settings', settings);
+      settingsPanel.classList.remove('active');
+      addMessage('system', '💾 Settings saved! Reconnecting...');
+    });
+
+    // Window controls
+    minimizeBtn.addEventListener('click', () => {
+      ipcRenderer.send('minimize');
+    });
+
+    closeBtn.addEventListener('click', () => {
+      ipcRenderer.send('close');
+    });
+
+    // Show settings from tray
+    ipcRenderer.on('show-settings', () => {
+      settingsPanel.classList.add('active');
+    });
+  </script>
+</body>
+</html>

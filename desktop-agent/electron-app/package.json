@@ -1,0 +1,68 @@
+{
+  "name": "ai-control-assistant",
+  "version": "1.0.0",
+  "description": "AI Control Desktop Assistant - Floating AI Agent",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder -mwl",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.aicontrol.assistant",
+    "productName": "AI Control Assistant",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!**/*.ts",
+      "!*.map"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.productivity"
+    },
+    "linux": {
+      "target": ["AppImage", "deb", "rpm"],
+      "icon": "assets/icon.png",
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true
+    }
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "ws": "^8.14.2",
+    "robotjs": "^0.6.0",
+    "screenshot-desktop": "^1.12.7",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "electron": "^27.1.0",
+    "electron-builder": "^24.9.1"
+  },
+  "keywords": ["ai", "assistant", "automation", "desktop"],
+  "author": "AI Control Team",
+  "license": "PROPRIETARY"
+}

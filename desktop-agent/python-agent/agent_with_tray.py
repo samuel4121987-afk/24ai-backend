@@ -1,10 +1,6 @@
 """
-AI Control Desktop Agent - Main Application
-This agent runs on the user's computer and handles:
-- Screen capture and streaming
-- Command execution
-- Mouse/keyboard control
-- WebSocket communication with the web interface
+Enhanced AI Control Desktop Agent with System Tray
+Combines the Python agent with system tray functionality
 """
 
 import asyncio
@@ -18,59 +14,106 @@ from PIL import Image
 import subprocess
 import platform
 from pathlib import Path
-import time
+import sys
+import threading
+from pystray import Icon, Menu, MenuItem
+from PIL import Image as PILImage
 
-class AIControlAgent:
+class AIControlAgentWithTray:
     def __init__(self):
         self.config = self.load_config()
         self.websocket = None
         self.running = False
-        self.fps = 5  # Frames per second for screen capture
+        self.fps = 5
         self.system = platform.system()
+        self.tray_icon = None
+        self.connection_status = "Disconnected"
         
     def load_config(self):
         """Load agent configuration with default fallback"""
         config_file = Path.home() / '.ai-control-agent' / 'config.json'
         
-        # ⚠️ CRITICAL: Default configuration - Now using Railway cloud backend
         default_config = {
-            'websocket_url': 'wss://24ai-backend-production.up.railway.app/ws',
-            'api_url': 'https://24ai-backend-production.up.railway.app/api'
+            'websocket_url': 'ws://localhost:8000/ws',
+            'api_url': 'http://localhost:8000/api',
+            'access_code': 'default-code'
         }
         
         if config_file.exists():
             try:
                 with open(config_file, 'r') as f:
                     loaded_config = json.load(f)
-                    print(f"✅ Config file found at: {config_file}")
-                    print(f"📄 Config contents: {loaded_config}")
-                    
-                    # Merge with defaults to ensure all keys exist
-                    final_config = {**default_config, **loaded_config}
-                    print(f"🔧 Final config after merge: {final_config}")
-                    return final_config
+                    return {**default_config, **loaded_config}
             except Exception as e:
-                print(f"⚠️ Error reading config file: {e}")
-                print(f"📦 Using default Railway configuration: {default_config}")
+                print(f"⚠️ Error reading config: {e}")
                 return default_config
         else:
-            print(f"⚠️ Config file not found at: {config_file}")
-            print(f"📦 Using default Railway configuration: {default_config}")
             return default_config
+    
+    def create_tray_icon(self):
+        """Create system tray icon"""
+        # Create a simple icon image
+        icon_image = PILImage.new('RGB', (64, 64), color='purple')
+        
+        # Create menu
+        menu = Menu(
+            MenuItem('AI Control Assistant', lambda: None, enabled=False),
+            Menu.SEPARATOR,
+            MenuItem(
+                lambda text: f'Status: {self.connection_status}',
+                lambda: None,
+                enabled=False
+            ),
+            Menu.SEPARATOR,
+            MenuItem('Show Window', self.show_window),
+            MenuItem('Settings', self.show_settings),
+            Menu.SEPARATOR,
+            MenuItem('Quit', self.quit_app)
+        )
+        
+        # Create icon
+        self.tray_icon = Icon(
+            'AI Control Assistant',
+            icon_image,
+            'AI Control Assistant',
+            menu
+        )
+    
+    def show_window(self):
+        """Show main window (placeholder)"""
+        print("📱 Show window clicked")
+        # In full implementation, this would show an Electron or Qt window
+    
+    def show_settings(self):
+        """Show settings dialog (placeholder)"""
+        print("⚙️ Settings clicked")
+        # In full implementation, this would open settings dialog
+    
+    def quit_app(self):
+        """Quit the application"""
+        print("👋 Quitting application...")
+        self.running = False
+        if self.tray_icon:
+            self.tray_icon.stop()
+        sys.exit(0)
+    
+    def update_tray_status(self, status):
+        """Update connection status in tray"""
+        self.connection_status = status
+        if self.tray_icon:
+            # Update menu (pystray doesn't support dynamic menu updates easily)
+            # In production, use a more sophisticated tray library
+            pass
     
     async def capture_screen(self):
         """Capture screen and return as base64 encoded image"""
         with mss.mss() as sct:
-            monitor = sct.monitors[1]  # Primary monitor
+            monitor = sct.monitors[1]
             screenshot = sct.grab(monitor)
             
-            # Convert to PIL Image
             img = Image.frombytes('RGB', screenshot.size, screenshot.rgb)
-            
-            # Resize for bandwidth optimization
             img.thumbnail((1280, 720), Image.Resampling.LANCZOS)
             
-            # Convert to base64
             buffer = io.BytesIO()
             img.save(buffer, format='JPEG', quality=85)
             img_str = base64.b64encode(buffer.getvalue()).decode()
@@ -83,7 +126,7 @@ class AIControlAgent:
         params = action.get('params', {})
         
         try:
-            print(f"🎯 Executing: {action_type} with params: {params}")
+            print(f"🎯 Executing: {action_type}")
             
             if action_type == 'mouse_click':
                 x, y = params.get('x'), params.get('y')
@@ -102,7 +145,6 @@ class AIControlAgent:
             
             elif action_type == 'keyboard_press':
                 key = params.get('key')
-                # Handle special key combinations
                 if '+' in key:
                     keys = key.split('+')
                     pyautogui.hotkey(*keys)
@@ -114,9 +156,9 @@ class AIControlAgent:
                 url = params.get('url')
                 if self.system == 'Windows':
                     subprocess.run(['start', url], shell=True)
-                elif self.system == 'Darwin':  # macOS
+                elif self.system == 'Darwin':
                     subprocess.run(['open', url])
-                else:  # Linux
+                else:
                     subprocess.run(['xdg-open', url])
                 return {'status': 'success', 'message': f'Opened URL: {url}'}
             
@@ -151,11 +193,10 @@ class AIControlAgent:
         results = []
         
         for i, action in enumerate(actions):
-            print(f"\n📋 Step {i+1}/{len(actions)}: {action.get('type')}")
+            print(f"📋 Step {i+1}/{len(actions)}: {action.get('type')}")
             result = await self.execute_action(action)
             results.append(result)
             
-            # Send progress update
             await self.websocket.send(json.dumps({
                 'type': 'action_result',
                 'step': i + 1,
@@ -164,10 +205,8 @@ class AIControlAgent:
                 'result': result
             }))
             
-            # Small delay between actions for stability
             await asyncio.sleep(0.3)
         
-        # Send completion
         await self.websocket.send(json.dumps({
             'type': 'sequence_complete',
             'results': results
@@ -192,46 +231,36 @@ class AIControlAgent:
     
     async def connect(self, access_code):
         """Connect to the web interface via WebSocket"""
-        # Get WebSocket URL from config with guaranteed default
-        base_ws_url = self.config.get('websocket_url', 'wss://24ai-backend-production.up.railway.app/ws')
+        base_ws_url = self.config.get('websocket_url', 'ws://localhost:8000/ws')
         
-        # Extra safety check - should never be None now
         if not base_ws_url or base_ws_url == 'None':
-            base_ws_url = 'wss://24ai-backend-production.up.railway.app/ws'
-            print(f"⚠️ WebSocket URL was invalid, using Railway default: {base_ws_url}")
+            base_ws_url = 'ws://localhost:8000/ws'
         
-        # Build complete WebSocket URL with query parameters
         ws_url = f"{base_ws_url}?code={access_code}&client_type=agent"
         
-        print(f"🔌 Connecting to Railway backend: {ws_url}")
+        print(f"🔌 Connecting to: {ws_url}")
+        self.update_tray_status("Connecting...")
         
         try:
             async with websockets.connect(ws_url) as websocket:
                 self.websocket = websocket
                 self.running = True
                 
-                print(f"✅ Connected successfully to Railway cloud!")
-                print(f"💻 System: {self.system}")
-                print(f"📹 Screen capture: {self.fps} FPS")
-                print(f"🤖 AI-powered command execution enabled")
-                print(f"☁️ Backend: Railway (24/7 uptime)")
-                print(f"⏳ Waiting for commands...")
+                print(f"✅ Connected successfully!")
+                self.update_tray_status("Connected")
                 
-                # Start screen streaming in background
                 stream_task = asyncio.create_task(self.screen_stream_loop())
                 
                 try:
-                    # Listen for commands
                     async for message in websocket:
                         data = json.loads(message)
                         
                         if data.get('type') == 'execute_sequence':
                             actions = data.get('actions', [])
-                            print(f"\n🚀 Received sequence with {len(actions)} actions")
+                            print(f"🚀 Received sequence with {len(actions)} actions")
                             await self.execute_sequence(actions)
                         
                         elif data.get('type') == 'command':
-                            # Legacy single command support
                             result = await self.execute_action(data.get('command'))
                             await websocket.send(json.dumps({
                                 'type': 'command_result',
@@ -244,41 +273,49 @@ class AIControlAgent:
                             
                 except websockets.exceptions.ConnectionClosed:
                     print("Connection closed by server")
+                    self.update_tray_status("Disconnected")
                 finally:
                     self.running = False
                     stream_task.cancel()
                     
         except Exception as e:
             print(f"❌ Connection failed: {e}")
-            print(f"\n🔍 Troubleshooting:")
-            print(f"1. Check your internet connection")
-            print(f"2. Verify Railway backend is running: https://24ai-backend-production.up.railway.app/api/health")
-            print(f"3. Check if your access code is valid")
-            print(f"4. WebSocket URL: {ws_url}")
-            print(f"5. Current config: {self.config}")
+            self.update_tray_status("Connection Failed")
+    
+    def run_agent(self, access_code):
+        """Run the agent in async loop"""
+        asyncio.run(self.connect(access_code))
     
     def run(self, access_code):
-        """Run the agent"""
+        """Run the agent with system tray"""
         print("=" * 60)
-        print("🤖 AI Control Desktop Agent")
+        print("🤖 AI Control Desktop Agent with System Tray")
         print("=" * 60)
         print(f"💻 System: {self.system}")
         print(f"🔑 Access Code: {access_code}")
-        print(f"☁️ Backend: Railway Cloud (24/7)")
-        print(f"🌐 WebSocket URL: {self.config.get('websocket_url', 'wss://24ai-backend-production.up.railway.app/ws')}")
         print("=" * 60)
         
-        asyncio.run(self.connect(access_code))
+        # Create tray icon
+        self.create_tray_icon()
+        
+        # Run agent in separate thread
+        agent_thread = threading.Thread(
+            target=self.run_agent,
+            args=(access_code,),
+            daemon=True
+        )
+        agent_thread.start()
+        
+        # Run tray icon (blocks until quit)
+        self.tray_icon.run()
 
 if __name__ == '__main__':
-    import sys
-    
     if len(sys.argv) < 2:
-        print("Usage: python agent.py <access_code>")
+        print("Usage: python agent_with_tray.py <access_code>")
         print("\nExample:")
-        print("  python agent.py test-code")
+        print("  python agent_with_tray.py test-code")
         sys.exit(1)
     
     access_code = sys.argv[1]
-    agent = AIControlAgent()
+    agent = AIControlAgentWithTray()
     agent.run(access_code)
